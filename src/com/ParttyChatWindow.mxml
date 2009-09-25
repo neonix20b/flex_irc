@@ -1,0 +1,772 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml"
+		  horizontalAlign="center"
+		  layout="vertical"
+		  creationComplete="onCreationComplete()"
+		  xmlns:client="com.oosterwijk.irc.client.*"
+		  styleName="logPanel"
+		  width="100%"
+		  height="100%"
+		  cornerRadius="0"
+		  borderColor="#FFFFFF"
+		  borderStyle="none"
+		  dropShadowEnabled="false"
+		  paddingBottom="0"
+		  paddingLeft="0"
+		  paddingRight="0"
+		  paddingTop="0"
+		  verticalGap="0"
+		  borderThickness="0"
+		  headerHeight="0"
+		  xmlns:ns1="com.*">
+	<mx:Script>
+		<![CDATA[
+			import mx.managers.PopUpManager;
+
+			//import mx.charts.chartClasses.StackedSeries;
+			import mx.collections.ArrayCollection;
+			import mx.controls.*;
+			import mx.events.MenuEvent;
+			import com.oosterwijk.irc.FlexIrcClient;
+			import com.oosterwijk.irc.event.ChannelGuiEvent;
+			import com.oosterwijk.irc.event.ChannelEvent;
+			import com.oosterwijk.irc.client.SetChannelTopicDialog;
+			import com.oosterwijk.irc.client.SetChannelPasswordDialog;
+			import com.oosterwijk.irc.User;
+			import com.oosterwijk.irc.client.PrivateMessageDialog;
+
+			/* the name of the channel this window represents */
+			private var _channel:String=null;
+
+			/* the users in this channel are in this ArrayCollection */
+			[Bindable]
+			private var _usersCollection:ArrayCollection=new ArrayCollection();
+
+			/* the channel member selcted in the gui by the end-user */
+			[Bindable]
+			private var _selectedUser:String="";
+
+			/* the Flex IRC Client Object */
+			private var _flexIrcClient:FlexIrcClient=null;
+
+			private function onCreationComplete():void
+			{
+				if (this.flexIrcClient != null && this.channel != "")
+					this.registerListeners(this.flexIrcClient);
+			}
+
+
+			/* GUI holders */
+			internal var setChannelTopicDialog:SetChannelTopicDialog=null;
+			internal var setChannelPasswordDialog:SetChannelPasswordDialog=null;
+			internal var privateMessageDialog:PrivateMessageDialog=null;
+
+			/**
+			 * the channel member selected by the end-user in the member-list.
+			 */
+			protected function get selectedUser():String
+			{
+				return this._selectedUser;
+			}
+
+			/**
+			 * The IRC channel this ChannelWindow represents
+			 */
+			[Bindable]
+			public function get channel():String
+			{
+				return this._channel;
+			}
+
+			public function set channel(value:String):void
+			{
+				this._channel=value;
+			}
+
+			/**
+			 * Public getter and setter for the IRC Client Connection Object
+			 */
+			public function get flexIrcClient():FlexIrcClient
+			{
+				return _flexIrcClient;
+			}
+
+			public function set flexIrcClient(value:FlexIrcClient):void
+			{
+				_flexIrcClient=value;
+			}
+
+
+			/**
+			 * This function will register itself for the following events on the
+			 * FlexIrcClient.
+			 *
+			 * INVITE_EVENT, USER_LIST_EVENT, MESSAGE_EVENT
+			 * JOIN_EVENT, PART_EVENT, KICK_EVENT
+			 * TOPIC_EVENT, CHANNEL_INFO_EVENT, MODE_EVENT
+			 * OP_EVENT, DE_OP_EVENT, VOICE_EVENT
+			 * DE_VOICE_EVENT, SET_CHANNEL_KEY_EVENT, REMOVE_CHANNEL_KEY_EVENT
+			 * SET_CHANNEL_LIMIT_EVENT, REMOVE_CHANNEL_LIMIT_EVENT, SET_CHANNEL_BAN_EVENT
+			 * REMOVE_CHANNEL_BAN_EVENT, SET_TOPIC_PROTECTION_EVENT, REMOVE_TOPIC_PROTECTION_EVENT
+			 * SET_NO_EXTERNAL_MESSAGES_EVENT, REMOVE_NO_EXTERNAL_MESSAGES_EVENT, SET_INVITE_ONLY_EVENT
+			 * REMOVE_INVITE_ONLY_EVENT, SET_MODERATED_EVENT, REMOVE_MODERATED_EVENT
+			 * SET_PRIVATE_EVENT, REMOVE_PRIVATE_EVENT, SET_SECRET_EVENT
+			 * REMOVE_SECRECT_EVENT
+			 *
+			 */
+			public function registerListeners(flexIrcClient:FlexIrcClient):void
+			{
+				flexIrcClient.addEventListener(FlexIrcClient.INVITE_EVENT, onInvite);
+				flexIrcClient.addEventListener(FlexIrcClient.USER_LIST_EVENT, onUserList);
+				flexIrcClient.addEventListener(FlexIrcClient.MESSAGE_EVENT, onMessage);
+				flexIrcClient.addEventListener(FlexIrcClient.JOIN_EVENT, onJoin);
+				flexIrcClient.addEventListener(FlexIrcClient.PART_EVENT, onPart);
+				flexIrcClient.addEventListener(FlexIrcClient.KICK_EVENT, onKick);
+				flexIrcClient.addEventListener(FlexIrcClient.TOPIC_EVENT, onTopic);
+				flexIrcClient.addEventListener(FlexIrcClient.CHANNEL_INFO_EVENT, onChannelInfo);
+				flexIrcClient.addEventListener(FlexIrcClient.OP_EVENT, onOp);
+				flexIrcClient.addEventListener(FlexIrcClient.DE_OP_EVENT, onDeop);
+				flexIrcClient.addEventListener(FlexIrcClient.VOICE_EVENT, onVoice);
+				flexIrcClient.addEventListener(FlexIrcClient.DE_VOICE_EVENT, onDeVoice);
+				flexIrcClient.addEventListener(FlexIrcClient.SET_CHANNEL_KEY_EVENT, onSetChannelKey);
+				flexIrcClient.addEventListener(FlexIrcClient.REMOVE_CHANNEL_KEY_EVENT, onRemoveChannelKey);
+				flexIrcClient.addEventListener(FlexIrcClient.SET_CHANNEL_LIMIT_EVENT, onSetChannelLimit);
+				flexIrcClient.addEventListener(FlexIrcClient.REMOVE_CHANNEL_LIMIT_EVENT, onRemoveChannelLimit);
+				flexIrcClient.addEventListener(FlexIrcClient.SET_CHANNEL_BAN_EVENT, onSetChannelBan);
+				flexIrcClient.addEventListener(FlexIrcClient.REMOVE_CHANNEL_BAN_EVENT, onRemoveChannelBan);
+				flexIrcClient.addEventListener(FlexIrcClient.SET_TOPIC_PROTECTION_EVENT, onSetTopicProtection);
+				flexIrcClient.addEventListener(FlexIrcClient.REMOVE_TOPIC_PROTECTION_EVENT, onRemoveTopicProtection);
+				flexIrcClient.addEventListener(FlexIrcClient.SET_NO_EXTERNAL_MESSAGES_EVENT, onSetNoExternalMessages);
+				flexIrcClient.addEventListener(FlexIrcClient.REMOVE_NO_EXTERNAL_MESSAGES_EVENT, onRemoveNoExternalMessages);
+				flexIrcClient.addEventListener(FlexIrcClient.SET_INVITE_ONLY_EVENT, onSetInviteOnly);
+				flexIrcClient.addEventListener(FlexIrcClient.REMOVE_INVITE_ONLY_EVENT, onRemoveInviteOnly);
+				flexIrcClient.addEventListener(FlexIrcClient.SET_MODERATED_EVENT, onSetModerated);
+				flexIrcClient.addEventListener(FlexIrcClient.REMOVE_MODERATED_EVENT, onRemoveModerated);
+				flexIrcClient.addEventListener(FlexIrcClient.SET_PRIVATE_EVENT, onSetPrivate);
+				flexIrcClient.addEventListener(FlexIrcClient.REMOVE_PRIVATE_EVENT, onRemovePrivate);
+				flexIrcClient.addEventListener(FlexIrcClient.SET_SECRET_EVENT, onSetSecret);
+				flexIrcClient.addEventListener(FlexIrcClient.REMOVE_SECRECT_EVENT, onRemoveSecret);
+				// Use this if you want access to all mode events. Most of these 
+				// are implemented in their own methods 
+				//flexIrcClient.addEventListener(FlexIrcClient.MODE_EVENT,onMode);
+
+				// These are the listeners for the gui-driven events we respond to	
+				addEventListener(ChannelGuiEvent.KICK_USER_EVENT, kickUser);
+				addEventListener(ChannelGuiEvent.BAN_USER_EVENT, banUser);
+				addEventListener(ChannelGuiEvent.KICK_AND_BAN_USER_EVENT, kickAndBanUser);
+				addEventListener(ChannelGuiEvent.OP_USER_EVENT, opUser);
+				addEventListener(ChannelGuiEvent.DE_OP_USER_EVENT, deOpUser);
+				addEventListener(ChannelGuiEvent.VOICE_USER_EVENT, voiceUser);
+				addEventListener(ChannelGuiEvent.DE_VOICE_USER_EVENT, deVoiceUser);
+
+
+			}
+
+			public function mdisconnect():void
+			{
+				flexIrcClient.partChannel(parentApplication.channelViewStack.selectedChild.label.toString());
+				parentApplication.channelViewStack.removeChildAt(parentApplication.channelViewStack.selectedIndex);
+			}
+
+			private function sendPrivate(e:Event):void
+			{
+				//Alert.show(e.target.selectedItem.toString());
+				//userChannelInput.text="/msg " + e.target.selectedItem.toString() + " ";
+				privateMessageDialog=new PrivateMessageDialog();
+				privateMessageDialog.wtfuser=e.target.selectedItem.toString();
+				privateMessageDialog.flexIrcClient=this.flexIrcClient;
+				PopUpManager.addPopUp(privateMessageDialog, this, true);
+
+			}
+
+			private function writeLineToChannelLog(line:String):void
+			{
+				this.channelLog.text=this.channelLog.text + line + "\n";
+				soundEffectMessage.target = channelLog;
+				soundEffectMessage.play();
+				setTimeout(setScroll, 100);
+			}
+
+			private function setScroll():void
+			{
+				this.channelLog.verticalScrollPosition=this.channelLog.maxVerticalScrollPosition;
+			}
+
+
+			private function channelCheck(argChannel:String):Boolean
+			{
+				return this.channel == argChannel;
+			}
+
+			private function addNewUserToGui(username:String, prefixes:String=""):void
+			{
+
+				if (username.length > 1)
+					this._usersCollection.addItem(username);
+			}
+
+			private function removeUserFromGui(username:String):void
+			{
+				for (var i:int; i < this._usersCollection.length; i++)
+				{
+					if ((this._usersCollection.getItemAt(i) as String) == username)
+					{
+						this._usersCollection.removeItemAt(i);
+						return;
+					}
+				}
+			}
+
+			private function deactivateChannel():void
+			{
+				this.channel=this.channel + "(inactive)";
+				this.status="Inactive";
+			}
+
+			/* START OF Channel Input Event Handlers */
+			private function sendChannelMessage(event:Event):void
+			{
+				soundEffectMessage.play();
+				if (userChannelInput.text != "")
+					this.flexIrcClient.sendMessage(this.channel, userChannelInput.text);
+				this.writeLineToChannelLog(this.flexIrcClient.getNick() + ">" + this.userChannelInput.text);
+				this.userChannelInput.text="";
+			}
+
+
+			//Event handler, invoked when you select from the menu.
+			private function channelMenuClickHandler(event:MenuEvent):void
+			{
+				if (event.item.@method == "setTopic")
+				{
+					this.setChannelTopicDialog=new SetChannelTopicDialog();
+					setChannelTopicDialog.flexIrcClient=this.flexIrcClient;
+					setChannelTopicDialog.channel=this.channel;
+					PopUpManager.addPopUp(setChannelTopicDialog, this, true);
+				}
+				else if (event.item.@method == "lockTopic")
+				{
+					this._flexIrcClient.setMode(this._channel, "+t");
+				}
+				else if (event.item.@method == "unlockTopic")
+				{
+					this._flexIrcClient.setMode(this._channel, "-t");
+				}
+				else if (event.item.@method == "leaveChannel")
+				{
+					this._flexIrcClient.partChannel(this._channel);
+				}
+				else if (event.item.@method == "setChannelPassword" || event.item.@method == "removeChannelPassword")
+				{
+					this.setChannelPasswordDialog=new SetChannelPasswordDialog();
+					setChannelPasswordDialog.flexIrcClient=this.flexIrcClient;
+					setChannelPasswordDialog.channel=this.channel;
+					PopUpManager.addPopUp(setChannelPasswordDialog, this, true);
+				}
+				else
+				{
+					Alert.show("Menu label: " + event.label + "  \n menu item index within parent menu: " + event.index + " has no action associated with it.");
+				}
+			}
+
+			private function userMenuClickHandler(event:MenuEvent):void
+			{
+
+				var channelGuiEvent:ChannelGuiEvent=null;
+				if (event.item.@method == "kickUser")
+				{
+					channelGuiEvent=new ChannelGuiEvent(ChannelGuiEvent.KICK_USER_EVENT);
+					channelGuiEvent.username=this.selectedUser;
+				}
+				else if (event.item.@method == "banUser")
+				{
+					channelGuiEvent=new ChannelGuiEvent(ChannelGuiEvent.BAN_USER_EVENT);
+					channelGuiEvent.username=this.selectedUser;
+				}
+				else if (event.item.@method == "kickAndBanUser")
+				{
+					channelGuiEvent=new ChannelGuiEvent(ChannelGuiEvent.KICK_AND_BAN_USER_EVENT);
+					channelGuiEvent.username=this.selectedUser;
+				}
+				else if (event.item.@method == "opUser")
+				{
+					channelGuiEvent=new ChannelGuiEvent(ChannelGuiEvent.OP_USER_EVENT);
+					channelGuiEvent.username=this.selectedUser;
+				}
+				else if (event.item.@method == "deOpUser")
+				{
+					channelGuiEvent=new ChannelGuiEvent(ChannelGuiEvent.DE_OP_USER_EVENT);
+					channelGuiEvent.username=this.selectedUser;
+				}
+				else if (event.item.@method == "voiceUser")
+				{
+					channelGuiEvent=new ChannelGuiEvent(ChannelGuiEvent.VOICE_USER_EVENT);
+					channelGuiEvent.username=this.selectedUser;
+				}
+				else if (event.item.@method == "deVoiceUser")
+				{
+					channelGuiEvent=new ChannelGuiEvent(ChannelGuiEvent.DE_VOICE_USER_EVENT);
+					channelGuiEvent.username=this.selectedUser;
+				}
+				else
+				{
+					Alert.show("Menu label: " + event.label + "  \n menu item index within parent menu: " + event.index + " has no action associated with it.");
+					return;
+				}
+				dispatchEvent(channelGuiEvent);
+			}
+
+
+			internal function kickUser(event:ChannelGuiEvent):void
+			{
+				trace("kicking user");
+				this._flexIrcClient.kick(this._channel, event.username);
+			}
+
+			internal function banUser(event:ChannelGuiEvent):void
+			{
+				this._flexIrcClient.ban(this._channel, event.hostmask);
+			}
+
+			internal function kickAndBanUser(event:ChannelGuiEvent):void
+			{
+				this._flexIrcClient.kick(this._channel, event.username);
+				this._flexIrcClient.ban(this._channel, event.hostmask);
+			}
+
+			internal function opUser(event:ChannelGuiEvent):void
+			{
+				this._flexIrcClient.op(this._channel, event.username);
+			}
+
+			internal function deOpUser(event:ChannelGuiEvent):void
+			{
+				this._flexIrcClient.deOp(this._channel, event.username);
+			}
+
+			internal function voiceUser(event:ChannelGuiEvent):void
+			{
+				this._flexIrcClient.voice(this._channel, event.username);
+			}
+
+			internal function deVoiceUser(event:ChannelGuiEvent):void
+			{
+				this._flexIrcClient.deVoice(this._channel, event.username);
+			}
+
+			/* END OF Channel Input Event Handlers */
+
+
+
+			/* START OF IRC Event Handlers */
+			protected function onInvite(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+			/*
+			   event.targetNick
+			   event.sender
+			   event.login
+			   event.hostname
+			   event.channel
+			 */
+			}
+
+
+			protected function onUserList(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				var users:Array=event.users;
+				for (var i:int; i < users.length; i++)
+				{
+					addNewUserToGui((users[i] as User).getNick());
+				}
+			}
+
+			protected function onMessage(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog(event.sender + "> " + event.message);
+			}
+
+			protected function onJoin(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				addNewUserToGui(event.sender);
+				this.writeLineToChannelLog("К нам пришел " + event.login + ": " + event.sender);
+			}
+
+			protected function onPart(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog(event.login + " ушел: " + event.sender);
+				removeUserFromGui(event.sender);
+				if (event.sender == this.flexIrcClient.getNick())
+					deactivateChannel();
+			}
+
+			protected function onKick(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog(event.sender + " кикнул " + event.targetNick + " (" + event.message + ")");
+				removeUserFromGui(event.targetNick);
+				if (event.sender == this.flexIrcClient.getNick())
+					deactivateChannel();
+			}
+
+			protected function onTopic(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				if (event.changed || this.title == "")
+				{
+					if (event.sender != null)
+						this.writeLineToChannelLog(event.sender + " установил тему: " + event.message);
+					else
+						this.writeLineToChannelLog("Тема: " + event.message);
+					this.title=this.channel + " - " + event.message.substr(0, 50);
+				}
+			}
+
+			protected function onChannelInfo(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("Канал: " + event.channel + " (" + event.userCount + ") Тема: " + event.message);
+			}
+
+			protected function onMode(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.sender + " Changes channel mode to: " + event.mode);
+			}
+
+			protected function onOp(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.targetNick + " received Op status (conferred by: " + event.sender + ")");
+			}
+
+			protected function onDeop(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.targetNick + " sees Op status revoked (by: " + event.sender + ")");
+			}
+
+			protected function onVoice(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.targetNick + " is given a voice (by: " + event.sender + ")");
+			}
+
+			protected function onDeVoice(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.targetNick + " sees his voice muted (by: " + event.sender + ")");
+			}
+
+			protected function onSetChannelKey(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.sender + " sets channel key: " + event.message);
+			}
+
+			protected function onRemoveChannelKey(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.sender + " removes channel key: " + event.message);
+			}
+
+			protected function onSetChannelLimit(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.sender + " sets channel limit: " + event.limit);
+
+			}
+
+			protected function onRemoveChannelLimit(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.sender + " removes channel limit");
+			}
+
+			protected function onSetChannelBan(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.sender + " sets channel ban for hostmask: " + event.hostmask);
+
+			}
+
+			protected function onRemoveChannelBan(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.sender + " removes channel ban for hostmask: " + event.hostmask);
+
+			}
+
+			protected function onSetTopicProtection(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.sender + " turns topic protection on");
+
+			}
+
+			protected function onRemoveTopicProtection(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.sender + " removes topic protection");
+
+			}
+
+			protected function onSetNoExternalMessages(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				var log:String=("User: " as String);
+				log=log + (event.sender as String);
+				log=log + (" turns external messages off" as String);
+				this.writeLineToChannelLog(log);
+
+			}
+
+			protected function onRemoveNoExternalMessages(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.sender + " allows external messages");
+			}
+
+			protected function onSetInviteOnly(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.sender + " sets channel to invite only");
+
+			}
+
+			protected function onRemoveInviteOnly(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.sender + " removes invite only from channel");
+
+			}
+
+			protected function onSetModerated(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.sender + " sets channel to moderated");
+			}
+
+			protected function onRemoveModerated(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.sender + " removes channel  moderation");
+			}
+
+			protected function onSetPrivate(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.sender + " sets channel to private");
+			}
+
+			protected function onRemovePrivate(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.sender + " removes channel's private setting");
+
+			}
+
+			protected function onSetSecret(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.sender + " makes channel secret");
+
+			}
+
+			protected function onRemoveSecret(event:ChannelEvent):void
+			{
+				if (!channelCheck(event.channel))
+				{
+					return;
+				}
+				this.writeLineToChannelLog("User: " + event.sender + " removes channel's secret setting");
+
+			} /* END OF IRC Event Handlers */
+		]]>
+	</mx:Script>
+	<!-- The operations that can be performed by the end-user on a selected channel member. -->
+	<mx:XMLList id="_userOperations">
+		<node label="Kick"
+			  method="kickUser"/>
+		<node label="Ban"
+			  method="banUSer"/>
+		<node label="Kick and Ban"
+			  method="kickAndBanUser"/>
+		<node label="Give Operator"
+			  method="opUser"/>
+		<node label="Take Operator"
+			  method="deOpUser"/>
+		<node label="Give Voice"
+			  method="voiceUser"/>
+		<node label="Take Voice"
+			  method="deVoiceUser"/>
+	</mx:XMLList>
+	<!-- the currently supported operations that can be performed on this channel. -->
+	<mx:XMLList id="_channelOperations">
+		<node label="Set Topic"
+			  method="setTopic"/>
+		<node label="Lock Topic"
+			  method="lockTopic"/>
+		<node label="Unlock Topic"
+			  method="unlockTopic"/>
+		<node label="Manage Password"
+			  method="setChannelPassword"/>
+		<node label="Leave"
+			  method="leaveChannel"/>
+	</mx:XMLList>
+	<mx:SoundEffect id="soundEffectMessage" source="@Embed(source='../mp3/sndAuthReq.mp3')" />
+	<mx:HDividedBox width="100%"
+					height="100%"
+					verticalGap="0"
+					paddingBottom="0"
+					paddingRight="0">
+		<mx:VBox width="80%"
+				 height="100%"
+				 styleName="logContainer"
+				 verticalGap="0"
+				 paddingTop="0"
+				 paddingBottom="0"
+				 paddingLeft="0"
+				 paddingRight="0">
+			<mx:TextArea width="100%"
+						 height="100%"
+						 id="channelLog"
+						 editable="false"
+						 styleName="logWindow"/>
+		</mx:VBox>
+		<mx:VBox width="164"
+				 height="100%"
+				 verticalGap="0"
+				 horizontalGap="0"
+				 paddingRight="0">
+			<mx:HBox width="100%"
+					 verticalAlign="middle">
+				<mx:Label text="Пользователи:"/>
+				<mx:Spacer width="100%"/>
+				<ns1:truelabel text="Выход"
+							   click="mdisconnect()"/>
+			</mx:HBox>
+			<mx:List id="channelUsersList"
+					 height="100%"
+					 width="100%"
+					 color="blue"
+					 dataProvider="{_usersCollection}"
+					 change="this._selectedUser=List(event.target).selectedItem.toString()"
+					 allowMultipleSelection="false"
+					 paddingRight="0"
+					 itemClick="sendPrivate(event)"/>
+			<!--
+				 <mx:PopUpMenuButton id="userOperationsComboBox"  dataProvider="{_userOperations}" labelField="@label" itemClick="userMenuClickHandler(event);" height="5%" width="100%"/>
+				 <mx:PopUpMenuButton id="channelOperationsComboBox"  dataProvider="{_channelOperations}" labelField="@label" itemClick="channelMenuClickHandler(event);" height="5%" width="100%"/>
+			-->
+		</mx:VBox>
+	</mx:HDividedBox>
+	<mx:HBox width="100%"
+			 verticalAlign="middle"
+			 paddingBottom="0"
+			 paddingTop="5">
+		<mx:TextInput width="100%"
+					  id="userChannelInput"
+					  enter="sendChannelMessage(event)"/>
+		<mx:Button bottom="2"
+				   label="Отправить"
+				   id="userChannelInputSubmitButton"
+				   click="sendChannelMessage(event)"/>
+	</mx:HBox>
+</mx:Panel>
+<!-- vim: tabstop=4
+-->

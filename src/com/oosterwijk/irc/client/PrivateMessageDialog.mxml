@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	 Action Script 3/Flex IRC Client Implementation
+	 Copyright (C) 2007 Leon Oosterwijk
+
+	 This program is free software; you can redistribute it and/or
+	 modify it under the terms of the GNU General Public License
+	 as published by the Free Software Foundation; either version 2
+	 of the License, or (at your option) any later version.
+
+	 This program is distributed in the hope that it will be useful,
+	 but WITHOUT ANY WARRANTY; without even the implied warranty of
+	 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	 GNU General Public License for more details.
+
+	 You should have received a copy of the GNU General Public License
+	 along with this program; if not, write to the Free Software
+	 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+-->
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml"
+				title="Личное сообщение"
+				showCloseButton="true"
+				creationComplete="doInit();"
+				close="PopUpManager.removePopUp(this);">
+	<mx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			import mx.events.EffectEvent;
+			import com.oosterwijk.irc.FlexIrcClient;
+			import mx.managers.PopUpManager;
+			private var _flexIrcClient:FlexIrcClient;
+
+			[Bindable]
+			public var connected:Boolean=false;
+			[Bindable]
+			public var wtfuser:String="";
+
+			public function set flexIrcClient(value:FlexIrcClient):void
+			{
+				_flexIrcClient=value;
+			}
+
+			public function get flexIrcClient():FlexIrcClient
+			{
+				return _flexIrcClient;
+			}
+
+			internal function sendMessage():void
+			{
+				this.flexIrcClient.sendMessage(this.uiUserName.text, this.uiPrivateMessage.text);
+				PopUpManager.removePopUp(this);
+			}
+
+			private function doInit():void
+			{
+				PopUpManager.centerPopUp(this);
+				this.uiPrivateMessage.setFocus();
+			}
+		]]>
+	</mx:Script>
+	<mx:Form verticalGap="4">
+		<mx:FormItem label="Кому">
+			<mx:TextInput x="83"
+						  y="10"
+						  id="uiUserName"
+						  text="{wtfuser}"
+						  enter="this.uiPrivateMessage.setFocus()"
+						  width="190"/>
+		</mx:FormItem>
+		<mx:FormItem label="Текст">
+			<mx:TextInput text=""
+						  id="uiPrivateMessage"
+						  enter="sendMessage()"
+						  width="190"/>
+		</mx:FormItem>
+		<mx:FormItem width="100%"
+					 horizontalAlign="right">
+			<mx:Button label="Отправить"
+					   id="uiSendButton"
+					   click="sendMessage()"
+					   enabled="{!connected}"/>
+		</mx:FormItem>
+	</mx:Form>
+</mx:TitleWindow>

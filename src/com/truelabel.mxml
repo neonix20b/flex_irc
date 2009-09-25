@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Label text="123456" color="{allColor}" buttonMode="{buttonCursor}" fontWeight="bold" mouseChildren="{!buttonCursor}" rollOver="colorizer(event)" rollOut="colorizer(event)" xmlns:mx="http://www.adobe.com/2006/mxml">
+	<mx:Script><![CDATA[
+			[Bindable]public var buttonCursor:Boolean = new Boolean(true);
+			[Bindable]public var allColor:uint = new uint("0xFF8400");
+			[Bindable]public var blurWeight:Number = new Number(1.2);
+			public var it_tag:Boolean = new Boolean(false);
+
+			private function colorizer(event:Event):void{
+				if(event.type.toString()=='rollOver'){
+					glowImage.target=event.target;
+					glowImage.play();
+				} 
+				if(event.type.toString()!='rollOver'){
+					unglowImage.target=event.target;
+					unglowImage.play();
+				} 
+			}
+		]]>
+	</mx:Script>
+	<mx:Glow id="glowImage" duration="100" 
+			 alphaFrom="0.0" alphaTo="1.0" 
+			 blurXFrom="0.0" blurXTo="{blurWeight}" 
+			 blurYFrom="0.0" blurYTo="{blurWeight}" 
+			 color="{allColor}"/>
+	<mx:Glow id="unglowImage" duration="100" 
+			 alphaFrom="1.0" alphaTo="0.0" 
+			 blurXFrom="{blurWeight}" blurXTo="0.0" 
+			 blurYFrom="{blurWeight}" blurYTo="0.0" 
+			 color="{allColor}"/>
+</mx:Label>
